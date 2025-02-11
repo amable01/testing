@@ -1,0 +1,4 @@
+flows:
+  - short_description: "Example Flow"
+    flow_name: "example_flow"
+    reassignment_group: "example_group"

@@ -1,0 +1,9 @@
+{
+    "taskResponse": {
+      "result": {
+        "description": "Select Users Email: user@example.com\nSecurity Group: example_group\nManaged By User: owner@example.com"
+      }
+    },
+    "additionalVariables": {}
+  }
+  

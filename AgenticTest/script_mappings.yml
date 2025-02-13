@@ -1,0 +1,4 @@
+mappings:
+  .ps1: 'powershell -Command "{script}"'
+  .py: 'python {script}'
+  .js: 'node {script}'

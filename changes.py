@@ -13,7 +13,7 @@ def parse_powershell_output(powershell_response: dict, additional_variables: dic
             # Check if the output is already a dictionary
             if isinstance(powershell_output, dict):
                 parsed_output = powershell_output
-            else:
+            elif isinstance(powershell_output, str):
                 # Attempt to parse the output as JSON
                 try:
                     parsed_output = json.loads(powershell_output)
@@ -22,6 +22,10 @@ def parse_powershell_output(powershell_response: dict, additional_variables: dic
                     worknote_content = f"Output is not valid JSON: {powershell_output}"
                     error_occurred = True
                     return additional_variables, worknote_content, error_occurred
+            else:
+                worknote_content = f"Unexpected output type: {type(powershell_output)}"
+                error_occurred = True
+                return additional_variables, worknote_content, error_occurred
 
             if isinstance(parsed_output, dict):
                 if parsed_output.get("Status") == "Success":

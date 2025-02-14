@@ -8,7 +8,7 @@ def parse_powershell_output(powershell_response: dict, additional_variables: dic
         worknote_content = ""
 
         if powershell_response["Status"] == "Success":
-            powershell_output = powershell_response["Outputs"]
+            powershell_output = powershell_response.get("Outputs")
 
             # Check if the output is None or empty
             if powershell_output is None:
@@ -35,7 +35,11 @@ def parse_powershell_output(powershell_response: dict, additional_variables: dic
 
             if isinstance(parsed_output, dict):
                 if parsed_output.get("Status") == "Success":
-                    additional_variables.update(parsed_output)
+                    additional_variables.update({
+                        "Userstobeadded": parsed_output.get("Userstobeadded", ""),
+                        "uniquegroupname": parsed_output.get("uniquegroupname", ""),
+                        "OwnerEmail": parsed_output.get("OwnerEmail", "")
+                    })
                     worknote_content = parsed_output.get("OutputMessage", "Execution Successful")
                 else:
                     OutputMessage = parsed_output.get("OutputMessage", "")

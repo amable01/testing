@@ -10,6 +10,12 @@ def parse_powershell_output(powershell_response: dict, additional_variables: dic
         if powershell_response["Status"] == "Success":
             powershell_output = powershell_response["Outputs"]
 
+            # Check if the output is None or empty
+            if powershell_output is None:
+                worknote_content = "PowerShell script returned null output."
+                error_occurred = True
+                return additional_variables, worknote_content, error_occurred
+
             # Check if the output is already a dictionary
             if isinstance(powershell_output, dict):
                 parsed_output = powershell_output

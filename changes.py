@@ -1,6 +1,6 @@
 def parse_powershell_output(powershell_response: dict, additional_variables: dict):
     """
-    Parse JSON output from the PowerShell script and update additional_variables.
+    Parse output from the PowerShell script and update additional_variables.
     Returns (updated_vars, worknote_content, error_occurred).
     """
     try:
@@ -8,26 +8,32 @@ def parse_powershell_output(powershell_response: dict, additional_variables: dic
         worknote_content = ""
 
         if powershell_response["Status"] == "Success":
-            try:
-                # Attempt to parse the output as JSON
-                powershell_output = json.loads(powershell_response["Outputs"])
-            except json.JSONDecodeError as json_e:
-                logging.error(f"JSON decode error: {json_e}")
-                powershell_output = powershell_response["Outputs"]
-                worknote_content = f"Output is not valid JSON: {powershell_output}"
-                error_occurred = True
+            powershell_output = powershell_response["Outputs"]
 
+            # Check if the output is already a dictionary
             if isinstance(powershell_output, dict):
-                if powershell_output.get("Status") == "Success":
-                    additional_variables.update(powershell_output)
-                    worknote_content = powershell_output.get("OutputMessage", "Execution Successful")
+                parsed_output = powershell_output
+            else:
+                # Attempt to parse the output as JSON
+                try:
+                    parsed_output = json.loads(powershell_output)
+                except json.JSONDecodeError as json_e:
+                    logging.error(f"JSON decode error: {json_e}")
+                    worknote_content = f"Output is not valid JSON: {powershell_output}"
+                    error_occurred = True
+                    return additional_variables, worknote_content, error_occurred
+
+            if isinstance(parsed_output, dict):
+                if parsed_output.get("Status") == "Success":
+                    additional_variables.update(parsed_output)
+                    worknote_content = parsed_output.get("OutputMessage", "Execution Successful")
                 else:
-                    OutputMessage = powershell_output.get("OutputMessage", "")
-                    ErrorMessage = powershell_output.get("ErrorMessage", "")
+                    OutputMessage = parsed_output.get("OutputMessage", "")
+                    ErrorMessage = parsed_output.get("ErrorMessage", "")
                     worknote_content = f"{OutputMessage}\n{ErrorMessage}"
                     error_occurred = True
             else:
-                worknote_content = f"Unexpected output format: {powershell_output}"
+                worknote_content = f"Unexpected output format: {parsed_output}"
                 error_occurred = True
         else:
             worknote_content = powershell_response["ErrorMessage"]

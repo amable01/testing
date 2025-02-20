@@ -121,25 +121,28 @@ def parse_powershell_output(powershell_response: dict, additional_variables: dic
         error_occurred = False
         if powershell_response["Status"] == "Success":
             try:
+                # Attempt to parse the JSON output
                 powershell_output = json.loads(powershell_response["Outputs"] or "{}")
-            except Exception as json_e:
+            except json.JSONDecodeError as json_e:
                 logging.error(f"JSON decode error: {json_e}")
                 raise RuntimeError("Output is not valid JSON.")
 
-            if not isinstance(powershell_output, dict):
-                powershell_output = json.loads(powershell_output)
-
-            if powershell_output.get("Status") == "Success":
-                additional_variables.update(powershell_output)
-                worknote_content = powershell_output.get("OutputMessage", "Execution Successful")
+            # Check if the output is a dictionary
+            if isinstance(powershell_output, dict):
+                if powershell_output.get("Status") == "Success":
+                    additional_variables.update(powershell_output)
+                    worknote_content = powershell_output.get("OutputMessage", "Execution Successful")
+                else:
+                    OutputMessage = powershell_output.get("OutputMessage", "")
+                    ErrorMessage = powershell_output.get("ErrorMessage", "")
+                    worknote_content = f"{OutputMessage}\n{ErrorMessage}"
+                    error_occurred = True
             else:
-                OutputMessage = powershell_output.get("OutputMessage", "")
-                ErrorMessage = powershell_output.get("ErrorMessage", "")
-                worknote_content = f"{OutputMessage}\n{ErrorMessage}"
-                error_occurred = True
+                raise RuntimeError("Parsed output is not a dictionary.")
         else:
             worknote_content = powershell_response["ErrorMessage"]
             error_occurred = True
+
         return additional_variables, worknote_content, error_occurred
     except Exception as e:
         raise RuntimeError(f"Error parsing PowerShell execution: {e}")

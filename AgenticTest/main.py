@@ -1,4 +1,4 @@
-
+import json
 import logging
 from DataModel.ServiceNowAPI import APIResponse
 from fastapi import FastAPI, HTTPException
@@ -22,7 +22,7 @@ async def startup_event():
 async def read_root():
     return {"message": "LangGraph Assistant is Running (Async)!"}
 
-@app.get("/api/task")
+@app.post("/api/task")
 async def execute_flow(task_data: APIResponse):
     """
     Endpoint to handle the flow for a given "number" (e.g. the ServiceNow Task Number).
@@ -33,7 +33,7 @@ async def execute_flow(task_data: APIResponse):
         task_response = task_data.model_dump()
         
         # Construct a unique thread_id. For example:
-        thread_id = "task_" + task_data.get("number", "unknown")
+        thread_id = "task_" + task_response["result"][0]["number"]
  
         # Now invoke the graph asynchronously
         output = graph.ainvoke(
@@ -42,7 +42,7 @@ async def execute_flow(task_data: APIResponse):
         )
  
         # Since ainvoke returns an Awaitable, we either await it in an async route
-        # or wrap it in a sync call. Because this route is sync
+        # or wrap it in a sync call. Because this route is sync, let's do:
         return await output
  
     except Exception as e:

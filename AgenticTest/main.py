@@ -38,7 +38,7 @@ async def execute_flow(task_data: APIResponse):
         # Now invoke the graph asynchronously
         output = graph.ainvoke(
             {"task_response": task_response},
-            config={"configurable": {"thread_id": thread_id}}
+            config={"configurable": {"thread_id": thread_id},"recurion_limit": 100}
         )
  
         # Since ainvoke returns an Awaitable, we either await it in an async route

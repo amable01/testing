@@ -364,6 +364,7 @@ async def evaluate_flow_decision(state: FlowState) -> FlowState:
 async def execute_flow_script(state: FlowState) -> FlowState:
     """
     Executes the current script in the workflow and updates the FlowState accordingly.
+    Only executes .ps1, .py, and .js files.
     
     Args:
         state (FlowState): The current state of the workflow, containing action index,
@@ -384,9 +385,26 @@ async def execute_flow_script(state: FlowState) -> FlowState:
     # Get the current action to execute
     action_name = actions[idx]
     action_path = os.path.join("UseCases", flow_name, action_name)
-    logging.debug(f"Running action script: {action_path}")
+    logging.debug(f"Checking action script: {action_path}")
+    
+    # Define allowed file extensions
+    allowed_extensions = ('.ps1', '.py', '.js')
+    
+    # Check if the file has an allowed extension
+    if not action_path.lower().endswith(allowed_extensions):
+        logging.warning(f"Skipping {action_name}: Unsupported file type")
+        state["execution_log"].append({
+            "script": action_name,
+            "Status": "Skipped",
+            "OutputMessage": "Unsupported file type - only .ps1, .py, and .js are allowed",
+            "ErrorMessage": ""
+        })
+        state["worknote_content"] = f"Skipped {action_name}: Unsupported file type"
+        state["action_index"] = idx + 1
+        return state
     
     try:
+        logging.debug(f"Running action script: {action_path}")
         # Execute the script asynchronously
         ps_result = await run_script(action_path, additional_vars, task_response)
         

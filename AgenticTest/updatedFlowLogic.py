@@ -382,7 +382,6 @@ async def execute_flow_script(state: FlowState) -> FlowState:
     flow_name = state["flow_name"]
     
     # Get the current action to execute
-    # Note: This function is called only when idx < len(actions), so the action exists
     action_name = actions[idx]
     action_path = os.path.join("UseCases", flow_name, action_name)
     logging.debug(f"Running action script: {action_path}")
@@ -399,33 +398,47 @@ async def execute_flow_script(state: FlowState) -> FlowState:
             "ErrorMessage": ps_result["ErrorMessage"]
         })
         
-        # Check if the script execution resulted in an error
         if ps_result["Status"] == "Error":
+            # Handle error case for all script types
             logging.error(f"Error executing {action_name}: {ps_result['ErrorMessage']}")
             state["worknote_content"] = f"Error in {action_name}: {ps_result['ErrorMessage']}"
             state["error_occurred"] = True
         else:
-            # Determine the script type based on file extension
-            ext = os.path.splitext(action_path)[1].lower()
-            if ext == ".ps1":
-                # Handle PowerShell output, expecting JSON format
-                updated_vars, note_content, error_occurred = parse_powershell_output(
-                    ps_result, additional_vars
-                )
+            # Handle success case uniformly
+            output = ps_result["OutputMessage"]
+            if isinstance(output, str):
+                try:
+                    # Attempt to parse as JSON (e.g., PowerShell output)
+                    output = json.loads(output)
+                except json.JSONDecodeError:
+                    # If not JSON, use the string directly as the success message
+                    state["worknote_content"] = output
+                    state["error_occurred"] = False
+                else:
+                    # Parsed as dictionary
+                    if output.get("Status") == "Success":
+                        state["additional_variables"].update(output)
+                        state["worknote_content"] = output.get("OutputMessage", "Execution Successful")
+                        state["error_occurred"] = False
+                    else:
+                        state["worknote_content"] = f"{output.get('OutputMessage', '')}\n{output.get('ErrorMessage', '')}"
+                        state["error_occurred"] = True
+            elif isinstance(output, dict):
+                # Output is already a dictionary (e.g., Python/Node.js JSON output)
+                if output.get("Status") == "Success":
+                    state["additional_variables"].update(output)
+                    state["worknote_content"] = output.get("OutputMessage", "Execution Successful")
+                    state["error_occurred"] = False
+                else:
+                    state["worknote_content"] = f"{output.get('OutputMessage', '')}\n{output.get('ErrorMessage', '')}"
+                    state["error_occurred"] = True
             else:
-                # Handle Python/Node.js output (no JSON parsing required)
-                updated_vars = additional_vars
-                # Ensure note_content is a string, handling cases where OutputMessage might be a dict
-                note_content = str(ps_result["OutputMessage"])
-                error_occurred = False
-            
-            # Update the state with new variables, worknote content, and error status
-            state["additional_variables"] = updated_vars
-            state["worknote_content"] = note_content
-            state["error_occurred"] = error_occurred
+                # Fallback: convert unexpected types to string
+                state["worknote_content"] = str(output)
+                state["error_occurred"] = False
     
     except Exception as e:
-        # Handle any exceptions that occur during script execution
+        # Handle any exceptions during execution
         logging.error(f"Execution failed for {action_name}: {e}")
         state["worknote_content"] = f"Execution failed for {action_name}: {e}"
         state["error_occurred"] = True

@@ -7,6 +7,9 @@ import uvicorn
 # Import our flow logic
 from flow_logic import init_graph
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 app = FastAPI()
 graph = None  # We'll initialize this on startup
 
@@ -29,8 +32,14 @@ async def execute_flow(task_data: APIResponse):
     We will parse the JSON, create a thread_id, and invoke the graph.
     """
     try:
-        # Build the dict in the same format as the original code expects:
+        # Log the incoming task_data for debugging
+        logging.debug(f"Incoming task_data: {task_data}")
+        
+        # Build the dict in the same format as the original code expects
         task_response = task_data.model_dump()
+        
+        # Log the task_response after conversion
+        logging.debug(f"Converted task_response: {task_response}")
         
         # Validate that sys_id exists in the task response
         if "result" not in task_response or not task_response["result"] or "sys_id" not in task_response["result"][0]:
@@ -42,7 +51,7 @@ async def execute_flow(task_data: APIResponse):
         # Now invoke the graph asynchronously
         output = await graph.ainvoke(
             {"task_response": task_response},
-            config={"configurable": {"thread_id": thread_id}, "recursion_limit": 100}  # Fixed typo
+            config={"configurable": {"thread_id": thread_id}, "recursion_limit": 100}
         )
 
         return output

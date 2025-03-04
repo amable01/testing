@@ -295,13 +295,19 @@ async def update_ticket_state(state: FlowState, task_state: TicketState) -> Flow
     """
     try:
         task_response = state["task_response"]
+        if "result" not in task_response or not task_response["result"]:
+            raise ValueError("Task response is missing 'result' data.")
+        
+        sys_id = task_response["result"][0].get("sys_id")
+        if not sys_id:
+            raise ValueError("Missing 'sys_id' in task response, cannot update ticket state.")
+
         state_request = {"state": str(task_state.value)}
         updated_state_json = json.dumps(state_request)
- 
+
         table_name = task_response["result"][0]["sys_class_name"]
-        sys_id = task_response["result"][0]["sys_id"]
- 
         url = f"{endpoint}/api/now/table/{table_name}/{sys_id}"
+
         async with httpx.AsyncClient() as client:
             auth = (user, pwd)
             resp = await client.put(
@@ -312,9 +318,8 @@ async def update_ticket_state(state: FlowState, task_state: TicketState) -> Flow
             )
             if resp.status_code != 200:
                 raise Exception(f"Failed to update state: {resp.json()}")
- 
+
         state["worknote_content"] = "Worknotes updated successfully"
-        # Log the updated ticket state in execution_log
         state["execution_log"].append({
             "action": "update_ticket_state",
             "ticket_state_value": task_state.value,
@@ -322,7 +327,11 @@ async def update_ticket_state(state: FlowState, task_state: TicketState) -> Flow
             "description": f"Ticket state successfully updated to {task_state.name} ({task_state.value})."
         })
     except Exception as e:
-        raise RuntimeError(f"Error updating state: {e}")
+        logging.error(f"Error updating ticket state: {e}")
+        state["error_occurred"] = True
+        state["worknote_content"] = f"Failed to update ticket state: {str(e)}"
+        # Optionally reassign the ticket if needed
+        state = await update_servicenow_assignment_group(state)
     return state
  
 async def retrieve_flow_scripts(state: FlowState) -> FlowState:
